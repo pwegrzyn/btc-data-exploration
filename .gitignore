@@ -194,3 +194,4 @@ $RECYCLE.BIN/
 
 # BTC database data
 btc_data/
+.vscode/settings.json
