@@ -6,25 +6,41 @@
 -- txout (txID, output_seq, addrID, sum)
 -- addr_sccs (addrID, userID)
 
--- TO CREATE A USER DATASET
+-- TO CREATE A USER DATASET WITH ALL USERS
 select
-  addresses.addres,
-  addr_sccs.userID,
+  all_users.address_id,
   sum(incoming.sum) as total_received,
   sum(outgoing.sum) as total_spent,
-  count(created_by_me) as issued_transactions,
-  count(incoming) as received_transactions,
+  count(created_by_me.id) as issued_transactions,
+  count(incoming.id) as received_transactions,
   max(outgoing.sum) as max_issued,
   min(outgoing.sum) as min_issued
 from
-  addresses
-  join addr_sccs on addr_sccs.addrID = addresses.addrID
-  join txout as incoming on addresses.addrID = incoming.addrID
-  join txin as tmp on addresses.addrID = tmp.addrID
-  join tx as created_by_me on tmp.txID = created_by_me.txID
-  join txout as outgoing on created_by_me.txID = outgoing.txID
+  (SELECT DISTINCT address_id from txin UNION SELECT DISTINCT address_id FROM txout) as all_users
+  join txout as incoming on incoming.address_id = all_users.address_id
+  join txin as tmp on all_users.address_id = tmp.address_id
+  join tx as created_by_me on tmp.id = created_by_me.id
+  join txout as outgoing on created_by_me.id = outgoing.id
 group by
-  addrID
+  all_users.address_id
+
+-- TO CREATE A USER DATASET WITH ONLY THE USERS WHO RECEIVED TXS
+select
+  all_users.address_id,
+  sum(incoming.sum) as total_received,
+  sum(outgoing.sum) as total_spent,
+  count(created_by_me.id) as issued_transactions,
+  count(incoming.id) as received_transactions,
+  max(outgoing.sum) as max_issued,
+  min(outgoing.sum) as min_issued
+from
+  txout
+  join txout as incoming on incoming.address_id = all_users.address_id
+  join txin as tmp on all_users.address_id = tmp.address_id
+  join tx as created_by_me on tmp.id = created_by_me.id
+  join txout as outgoing on created_by_me.id = outgoing.id
+group by
+  all_users.address_id
 
 -- TO CREATE A TXS DATASET
 select
@@ -45,8 +61,5 @@ from
   join txin on tx.txID = txin.txID
   join txout on tx.txID = txout.txID
   join addresses on txin.addrID = addresses.addrID
-where
-  bh.blockID between 250000
-  and 300000
 group BY
-  txID
+  tx.txID
